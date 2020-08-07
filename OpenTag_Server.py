@@ -223,7 +223,7 @@ def removePlayer(conn, addr, forcibleDisconnect):
     global gameInProgress
 
     playerIndex = findPlayer(addr)
-    if clients[findPlayer(addr)].admin and forcibleDisconnect:
+    if forcibleDisconnect:
         if clients[findPlayer(addr)].admin:
 
             connectionsAvailable = False
