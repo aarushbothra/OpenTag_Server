@@ -153,6 +153,8 @@ class Player:
 
     def addDeath(self):
         self.deaths += 1
+
+
 #ammo, lives, time, maxKills, and numOfTeams will all be ints, with max 255. If any of these are 0, then they will be unlimited (for numOfTeams, it will be ffa).
 #Both time and maxKills cannot be 0, will be managed by app.
 #numOfTeams cannot be greater than 8, unless ffa. numOfTeams also cannot be 1
