@@ -260,7 +260,9 @@ def parseMessage(conn, addr, msgRaw):
     global gameEnded
 
     msg = bytearray(msgRaw)
-    print(f"Message Receied: {msg}")
+    
+    if msg[0] != 252:
+        print(f"Message Receied: {msg}")
 
     if msg[0] == 0:
 
