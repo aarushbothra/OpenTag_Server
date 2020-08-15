@@ -13,7 +13,7 @@ HEADER = 64
 PORT = 1234
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
-VERSION = float(1.0)
+VERSION = float(1.1)
 
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -298,6 +298,12 @@ def parseMessage(conn, addr, msgRaw):
         for client in clients:
             client.returnConn().send(listToString(byteList).encode("utf-8"))
 
+        if gameInProgress == True:
+            byteList = [0]*20
+            byteList[0] = 5
+            for client in clients:
+                client.returnConn().send(listToString(byteList).encode("utf-8"))
+
     elif msg[0] == 2:
         gameInProgress = True
         byteList = [0]*20
@@ -440,6 +446,8 @@ def sendStartingMessages(conn, addr):
                    byteList[11] = client.getTeam()
                    byteList[12] = client.getGunType()
                    byteList[13] = client.getGunID()
+                   byteList[14] = client.deaths
+                   byteList[15] = client.kills
 
                    conn.send(listToString(byteList).encode("utf-8"))
 
@@ -478,7 +486,7 @@ def start():
 
             #version 1.0
             byteList[1] = 1 #1
-            byteList[2] = 0 #.0
+            byteList[2] = 1 #.0
 
             conn.send(listToString(byteList).encode("utf-8"))
 
