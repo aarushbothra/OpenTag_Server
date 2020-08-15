@@ -78,13 +78,13 @@ def restart():
     byteList[0] = 254
     
     for client in clients:
-        client.conn.send(listToString(byteList).encode("utf-8"))
+        client.conn.close()
 
     connectionsAvailable = False
  
 
     server.close()
-    
+    print("server closed")
     clients = []
     gunIDs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
     adminNotSet = True
@@ -380,6 +380,11 @@ def handle_client(conn, addr):
             msgRaw = conn.recv(20)
         except:
             connected = False
+            try:
+                conn.close()
+                removePlayer(conn, addr)
+            except:
+                print(f"unable to remove forcibly disconnected player@ try recv {addr}")
             print(f"client forcibly disconnected @ try recv {addr}")
 
             if len(gunIDs) > 0:
@@ -389,8 +394,15 @@ def handle_client(conn, addr):
             parseMessage(conn, addr, msgRaw)
 
         else:
-            print(f"client forcibly disconnected @ if msgRaw {addr}")
             connected = False
+            try:
+                conn.close()
+                removePlayer(conn, addr)
+            except:
+                print(f"unable to remove forcibly disconnected player@ if msgRaw {addr}")
+            print(f"client forcibly disconnected @ if msgRaw {addr}")
+            
+            
 
 
 
