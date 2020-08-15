@@ -65,21 +65,23 @@ def restart():
     global adminNotSet
     global connectionsAvailable
     global currentGame
-    global connected
     global adminSetUpComplete
     global gameInProgress
     global sendPlayerInfo
     global server
     global gameEnded
     
-    exit()
+   # sys.exit()
 
     print("restart")
     byteList = [0]*20
     byteList[0] = 254
+    
+    for client in clients:
+        client.conn.send(listToString(byteList).encode("utf-8"))
 
     connectionsAvailable = False
-    connected = False
+ 
 
     server.close()
     
@@ -201,48 +203,49 @@ def findPlayer(addr):
     x = 0
     returnVar = -1
     while x < len(clients):
-        if(clients[x].returnAddress() == addr):
+        if(clients[x].address == addr):
             returnVar = x
         x += 1
     return returnVar
 
 
 
-def removePlayer(conn, addr, forcibleDisconnect):
+def removePlayer(conn, addr):
     global clients
     global connectionsAvailable
-    global connected
     global currentGame
     global handeleServerRestartPath
     global adminSetUpComplete
     global sendPlayerInfo
     global gameInProgress
 
+    print(f"REMOVING PLAYER {addr}")
+
     conn.close()
-    connected = False
 
     playerIndex = findPlayer(addr)
-    if not forcibleDisconnect:
-        if clients[findPlayer(addr)].admin:
-
-            connectionsAvailable = False
-            restart()
-            print("admin removed")
+    if clients[playerIndex].admin:
+        connectionsAvailable = False
+        print("admin removed")
+        restart()
+        
+    
     else:
         if sendPlayerInfo:
             byteList = [0]*20
             byteList[0] = 4
             byteList[1] = clients[playerIndex].getGunID()
+            gunIDs.append(clients[findPlayer(addr)].getGunID())
+            clients.pop(playerIndex)
             for client in clients:
                 sendWithException(client.returnConn(), byteList)
 
-            gunIDs.append(clients[findPlayer(addr)].getGunID())
-            clients.pop(playerIndex)
+        
         else:
+            print("regular player removed")
             gunIDs.append(clients[playerIndex].getGunID())
             clients.pop(playerIndex)
 
-        print("player removed")
 
 
 
@@ -250,7 +253,6 @@ def parseMessage(conn, addr, msgRaw):
 
     global clients
     global connectionsAvailable
-    global connected
     global currentGame
     global handeleServerRestartPath
     global adminSetUpComplete
@@ -287,7 +289,7 @@ def parseMessage(conn, addr, msgRaw):
             usernameArray.append(msg[x])
             byteList[x] = msg[x]
         username = usernameArray
-        clients[findPlayer(addr)].setPlayerSettings(True, username, msg[11], msg[12])
+        clients[findPlayer(addr)].setPlayerSettings(True, username, msg[11], msg[12], 0, 0)
         sendPlayerInfo = True
 
         byteList[0] = 3
@@ -301,8 +303,7 @@ def parseMessage(conn, addr, msgRaw):
         if gameInProgress == True:
             byteList = [0]*20
             byteList[0] = 5
-            for client in clients:
-                client.returnConn().send(listToString(byteList).encode("utf-8"))
+            conn.send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 2:
         gameInProgress = True
@@ -340,7 +341,7 @@ def parseMessage(conn, addr, msgRaw):
 
     elif msg[0] == 253:
         if msg[1] == 0:
-            removePlayer(conn, addr, False)
+            removePlayer(conn, addr)
         else:
             sendStartingMessages(conn, addr)
             print("sending starting messages")
@@ -349,7 +350,7 @@ def parseMessage(conn, addr, msgRaw):
         restart()
 
     elif msg[0] == 255:
-        removePlayer(conn, addr, False)
+        removePlayer(conn, addr)
         print(f"{addr} CONNECTION CLOSED")
 
 
@@ -367,7 +368,7 @@ def handle_client(conn, addr):
     global adminNotSet
     global gunIDs
     global server
-    global connected
+    
 
 
 
@@ -378,7 +379,7 @@ def handle_client(conn, addr):
         try:
             msgRaw = conn.recv(20)
         except:
-            removePlayer(conn, addr, True)
+            connected = False
             print(f"client forcibly disconnected @ try recv {addr}")
 
             if len(gunIDs) > 0:
@@ -389,7 +390,6 @@ def handle_client(conn, addr):
 
         else:
             print(f"client forcibly disconnected @ if msgRaw {addr}")
-            removePlayer(conn, addr, True)
             connected = False
 
 
@@ -398,7 +398,6 @@ def sendStartingMessages(conn, addr):
     print("sending starting messages")
     global clients
     global connectionsAvailable
-    global connected
     global currentGame
     global handeleServerRestartPath
     global adminSetUpComplete
@@ -458,7 +457,6 @@ def start():
 
     global clients
     global connectionsAvailable
-    global connected
     global currentGame
     global handeleServerRestartPath
     global adminSetUpComplete
@@ -486,7 +484,7 @@ def start():
 
             #version 1.0
             byteList[1] = 1 #1
-            byteList[2] = 1 #.0
+            byteList[2] = 1 #.1
 
             conn.send(listToString(byteList).encode("utf-8"))
 
