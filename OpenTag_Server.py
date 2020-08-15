@@ -71,6 +71,8 @@ def restart():
     global sendPlayerInfo
     global server
     global gameEnded
+    
+    exit()
 
     print("restart")
     byteList = [0]*20
@@ -78,14 +80,9 @@ def restart():
 
     connectionsAvailable = False
     connected = False
-    if not gameEnded:
-        for client in clients:
-            sendWithException(client.conn, byteList)
-            client.returnConn().close()
-
 
     server.close()
-
+    
     clients = []
     gunIDs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
     adminNotSet = True
@@ -107,9 +104,6 @@ class Player:
     global gunIDs
 
     usernameSet = False
-
-    kills = 0
-    deaths = 0
 
     def __init__(self, conn, addr):
         self.conn = conn
@@ -133,11 +127,13 @@ class Player:
     def returnAddress(self):
         return self.address
 
-    def setPlayerSettings(self, usernameSet, username, team, gunType):
+    def setPlayerSettings(self, usernameSet, username, team, gunType, kills, deaths):
         self.username = username
         self.team = team
         self.gunType = gunType
         self.usernameSet = usernameSet
+        self.kills = kills
+        self.deaths = deaths
 
     def getUsername(self):
         return self.username
@@ -222,8 +218,11 @@ def removePlayer(conn, addr, forcibleDisconnect):
     global sendPlayerInfo
     global gameInProgress
 
+    conn.close()
+    connected = False
+
     playerIndex = findPlayer(addr)
-    if forcibleDisconnect:
+    if not forcibleDisconnect:
         if clients[findPlayer(addr)].admin:
 
             connectionsAvailable = False
@@ -335,9 +334,7 @@ def parseMessage(conn, addr, msgRaw):
 
     elif msg[0] == 253:
         if msg[1] == 0:
-            connected = False
             removePlayer(conn, addr, False)
-            conn.close()
         else:
             sendStartingMessages(conn, addr)
             print("sending starting messages")
@@ -346,9 +343,7 @@ def parseMessage(conn, addr, msgRaw):
         restart()
 
     elif msg[0] == 255:
-        connected = False
         removePlayer(conn, addr, False)
-        conn.close()
         print(f"{addr} CONNECTION CLOSED")
 
 
@@ -379,12 +374,9 @@ def handle_client(conn, addr):
         except:
             removePlayer(conn, addr, True)
             print(f"client forcibly disconnected @ try recv {addr}")
-            conn.close()
-            connected = False
 
             if len(gunIDs) > 0:
                 connectionsAvailable = True
-            break
          
         if msgRaw:
             parseMessage(conn, addr, msgRaw)
@@ -392,7 +384,6 @@ def handle_client(conn, addr):
         else:
             print(f"client forcibly disconnected @ if msgRaw {addr}")
             removePlayer(conn, addr, True)
-            conn.close()
             connected = False
 
 
