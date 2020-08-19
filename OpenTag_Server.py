@@ -3,7 +3,7 @@ import threading
 import time
 import os
 import sys
-#import psutil
+
 import logging
 import struct
 
@@ -11,32 +11,38 @@ import subprocess
 
 HEADER = 64
 PORT = 1234
+#Change this value to the computer's ipv4. You don't need to change this if the server is running on windows
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
-VERSION = float(1.1)
-
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 
+#Changes to false after first player connected is assigned admin to prevent other players from becoming admin
 adminNotSet = True
 
+#list of all connected clients, stored as Player objects
 clients = []
 
+#gunIDs available to assign to clients. GunIDs get removed from this list when it is assigned to a player, and added back when players disconnect.
 gunIDs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
 
+#Stops the server from accepting clients if the server has run out of gunIDs to assign. 
 connectionsAvailable = True
 
+#global variable that stores the settings of the current game by being instantiated as a Game object.
 currentGame = None
 
+#tracks whether admin has sent game settings back to the server
 adminSetUpComplete = False
 
+#tracks whether a game is currently running
 gameInProgress = False
 
-sendPlayerInfo = False
-
+#tracks whether a game has ended.
 gameEnded = False
 
+#turns a list of ints into a string so it can be sent over the socket
 def listToString(list):
     returnString = ''
 
@@ -51,14 +57,7 @@ def listToString(list):
 
     return returnString
 
-
-def sendWithException(conn, byteList):
-    try:
-        conn.send(listToString(byteList).encode("utf-8"))
-    except:
-        print("unable to send")
-
-
+#Restarts the server and disconnects all connected clients. Resets all globals.
 def restart():
     global clients
     global gunIDs
@@ -67,11 +66,8 @@ def restart():
     global currentGame
     global adminSetUpComplete
     global gameInProgress
-    global sendPlayerInfo
     global server
     global gameEnded
-    
-   # sys.exit()
 
     print("restart")
     byteList = [0]*20
@@ -82,9 +78,6 @@ def restart():
 
     connectionsAvailable = False
  
-
-    server.close()
-    print("server closed")
     clients = []
     gunIDs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
     adminNotSet = True
@@ -92,11 +85,7 @@ def restart():
     currentGame = None
     adminSetUpComplete = False
     gameInProgress = False
-    sendPlayerInfo = False
     gameEnded = False
-
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(ADDR)
 
     print("[STARTING] server is starting...")
     start()
@@ -185,7 +174,7 @@ class Game:
 
 
 
-
+#returns index of player with matching gunID
 def findPlayerByGunID(gunID):
     global clients
 
@@ -197,6 +186,7 @@ def findPlayerByGunID(gunID):
         x += 1
     return returnVar
 
+#returns index of player with matching addr
 def findPlayer(addr):
     global clients
 
@@ -209,14 +199,13 @@ def findPlayer(addr):
     return returnVar
 
 
-
+#removes player from list clients and sends message to all other clients to remove player from their lists if client disconnects from server
 def removePlayer(conn, addr):
     global clients
     global connectionsAvailable
     global currentGame
     global handeleServerRestartPath
     global adminSetUpComplete
-    global sendPlayerInfo
     global gameInProgress
 
     print(f"REMOVING PLAYER {addr}")
@@ -231,14 +220,14 @@ def removePlayer(conn, addr):
         
     
     else:
-        if sendPlayerInfo:
+        if clients[findPlayer(addr)].usernameSet:
             byteList = [0]*20
             byteList[0] = 4
             byteList[1] = clients[playerIndex].getGunID()
             gunIDs.append(clients[findPlayer(addr)].getGunID())
             clients.pop(playerIndex)
             for client in clients:
-                sendWithException(client.returnConn(), byteList)
+               conn.send(listToString(byteList).encode("utf-8"))
 
         
         else:
@@ -248,7 +237,7 @@ def removePlayer(conn, addr):
 
 
 
-
+#parses message recieved from client. For more info, see server communication protocol document.
 def parseMessage(conn, addr, msgRaw):
 
     global clients
@@ -256,7 +245,6 @@ def parseMessage(conn, addr, msgRaw):
     global currentGame
     global handeleServerRestartPath
     global adminSetUpComplete
-    global sendPlayerInfo
     global gameInProgress
     global gameEnded
 
@@ -290,7 +278,6 @@ def parseMessage(conn, addr, msgRaw):
             byteList[x] = msg[x]
         username = usernameArray
         clients[findPlayer(addr)].setPlayerSettings(True, username, msg[11], msg[12], 0, 0)
-        sendPlayerInfo = True
 
         byteList[0] = 3
         byteList[11] = msg[11]
@@ -359,7 +346,7 @@ def parseMessage(conn, addr, msgRaw):
 
 
 
-
+#listens for messages from clients
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
@@ -405,7 +392,7 @@ def handle_client(conn, addr):
             
 
 
-
+#when client connects for first time, server will send these messages to make sure client is up to date with the information all oter clients have about the game
 def sendStartingMessages(conn, addr):
     print("sending starting messages")
     global clients
@@ -414,7 +401,6 @@ def sendStartingMessages(conn, addr):
     global handeleServerRestartPath
     global adminSetUpComplete
     global adminNotSet
-    global sendPlayerInfo
     global gameInProgress
     global VERSION
 
@@ -445,7 +431,7 @@ def sendStartingMessages(conn, addr):
 
         conn.send(listToString(byteList).encode("utf-8"))
     
-    if sendPlayerInfo:
+    if clients[findPlayer(addr)].usernameSet:
         for client in clients:
               if client.usernameSet:
                    byteList = [0]*20
@@ -462,7 +448,7 @@ def sendStartingMessages(conn, addr):
 
                    conn.send(listToString(byteList).encode("utf-8"))
 
-
+#listens for connection attempts and starts connections from clients
 def start():
     server.listen()
     print(f"[LISTENING] Server is listening on {SERVER}")
@@ -473,18 +459,17 @@ def start():
     global handeleServerRestartPath
     global adminSetUpComplete
     global adminNotSet
-    global sendPlayerInfo
     global gameInProgress
     global VERSION
 
-    while connectionsAvailable and not gameInProgress:
+    while True:
         continueExec = False
-        try:
-            conn, addr = server.accept()
-            continueExec = True
-        except:
-           # print("connection tried on something that isnt a socket @ start()")
-            continueExec = False
+        if connectionsAvailable:
+            try:
+                conn, addr = server.accept()
+                continueExec = True
+            except:
+                continueExec = False
 
         if continueExec:
 
