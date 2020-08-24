@@ -11,7 +11,7 @@ import subprocess
 
 HEADER = 64
 PORT = 1234
-#Change this value to the computer's ipv4. You don't need to change this if the server is running on windows
+#Change SERVER to the computer's IPV4. You don't need to change this if the server is running on windows
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 
@@ -87,6 +87,7 @@ def restart():
     gameInProgress = False
     gameEnded = False
 
+    server.close()
     print("[STARTING] server is starting...")
     start()
 
@@ -479,7 +480,7 @@ def start():
             byteList = [0]*20
             byteList[0] = 253
 
-            #version 1.0
+            #version 1.1
             byteList[1] = 1 #1
             byteList[2] = 1 #.1
 
