@@ -42,6 +42,8 @@ gameInProgress = False
 #tracks whether a game has ended.
 gameEnded = False
 
+listen = True
+
 #turns a list of ints into a string so it can be sent over the socket
 def listToString(list):
     returnString = ''
@@ -68,6 +70,9 @@ def restart():
     global gameInProgress
     global server
     global gameEnded
+    global listen
+
+    listen = False
 
     print("restart")
     byteList = [0]*20
@@ -86,8 +91,8 @@ def restart():
     adminSetUpComplete = False
     gameInProgress = False
     gameEnded = False
+    listen = True
 
-    server.close()
     print("[STARTING] server is starting...")
     start()
 
@@ -325,7 +330,15 @@ def parseMessage(conn, addr, msgRaw):
         byteList[0] = 8
         for client in clients:
             client.returnConn().send(listToString(byteList).encode("utf-8"))
-        restart()
+
+    elif msg[0] == 6:
+        byteList = [0]*20
+        byteList[0] = 9
+        byteList[1] = msg[1]
+        byteList[2] = msg[2]
+        for client in clients:
+            if not client.admin:
+                client.returnConn().send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 253:
         if msg[1] == 0:
@@ -356,8 +369,6 @@ def handle_client(conn, addr):
     global adminNotSet
     global gunIDs
     global server
-    
-
 
 
     connected = True
@@ -432,26 +443,24 @@ def sendStartingMessages(conn, addr):
 
         conn.send(listToString(byteList).encode("utf-8"))
     
-    if clients[findPlayer(addr)].usernameSet:
-        for client in clients:
-              if client.usernameSet:
-                   byteList = [0]*20
-                   byteList[0] = 3
+    
+    for client in clients:
+        if client.usernameSet:
+            byteList = [0]*20
+            byteList[0] = 3
+            for x in range(1,10):
+                byteList[x] = client.getUsername()[x-1]
 
-                   for x in range(1,10):
-                       byteList[x] = client.getUsername()[x-1]
-
-                   byteList[11] = client.getTeam()
-                   byteList[12] = client.getGunType()
-                   byteList[13] = client.getGunID()
-                   byteList[14] = client.deaths
-                   byteList[15] = client.kills
-
-                   conn.send(listToString(byteList).encode("utf-8"))
+            byteList[11] = client.getTeam()
+            byteList[12] = client.getGunType()
+            byteList[13] = client.getGunID()
+            byteList[14] = client.deaths
+            byteList[15] = client.kills
+            conn.send(listToString(byteList).encode("utf-8"))
 
 #listens for connection attempts and starts connections from clients
 def start():
-    server.listen()
+    
     print(f"[LISTENING] Server is listening on {SERVER}")
 
     global clients
@@ -462,8 +471,9 @@ def start():
     global adminNotSet
     global gameInProgress
     global VERSION
+    global listen 
 
-    while True:
+    while listen:
         continueExec = False
         if connectionsAvailable:
             try:
@@ -480,9 +490,9 @@ def start():
             byteList = [0]*20
             byteList[0] = 253
 
-            #version 1.1
+            #version 1.2
             byteList[1] = 1 #1
-            byteList[2] = 1 #.1
+            byteList[2] = 2 #.2
 
             conn.send(listToString(byteList).encode("utf-8"))
 
@@ -494,4 +504,5 @@ def start():
 
 
 print("[STARTING] server is starting...")
+server.listen()
 start()
