@@ -124,13 +124,14 @@ class Player:
     def returnAddress(self):
         return self.address
 
-    def setPlayerSettings(self, usernameSet, username, team, gunType, kills, deaths):
+    def setPlayerSettings(self, usernameSet, username, team, gunType, kills, deaths, score):
         self.username = username
         self.team = team
         self.gunType = gunType
         self.usernameSet = usernameSet
         self.kills = kills
         self.deaths = deaths
+        self.score = score
 
     def getUsername(self):
         return self.username
@@ -147,19 +148,23 @@ class Player:
     def addDeath(self):
         self.deaths += 1
 
+    def addScore(self):
+        self.score += 1
+
 
 #ammo, lives, time, maxKills, and numOfTeams will all be ints, with max 255. If any of these are 0, then they will be unlimited (for numOfTeams, it will be ffa).
 #Both time and maxKills cannot be 0, will be managed by app.
 #numOfTeams cannot be greater than 8, unless ffa. numOfTeams also cannot be 1
 #Time will be in minutes
 class Game:
-    def __init__(self, numOfTeams, ammo, lives, time, maxKills, location):
+    def __init__(self, numOfTeams, ammo, lives, time, maxKills, location, gameType):
         self.ammo = ammo
         self.lives = lives
         self.time = time
         self.maxKills = maxKills
         self.numOfTeams = numOfTeams
         self.location = location
+        self.gameType = gameType
 
     def getNumOfTeams(self):
         return self.numOfTeams
@@ -261,7 +266,7 @@ def parseMessage(conn, addr, msgRaw):
 
     if msg[0] == 0:
 
-        currentGame = Game(msg[1], msg[2], msg[3], msg[4], msg[5], msg[6])
+        currentGame = Game(msg[1], msg[2], msg[3], msg[4], msg[5], msg[6], msg[7])
         adminSetUpComplete = True
         byteList = [0]*20
         byteList[0] = 2
@@ -271,6 +276,7 @@ def parseMessage(conn, addr, msgRaw):
         byteList[4] = currentGame.getTime()
         byteList[5] = currentGame.getMaxKills()
         byteList[6] = currentGame.location
+        byteList[7] = currentGame.gameType
 
         print(f"sending game setup: {byteList}")
         for client in clients:
@@ -283,7 +289,7 @@ def parseMessage(conn, addr, msgRaw):
             usernameArray.append(msg[x])
             byteList[x] = msg[x]
         username = usernameArray
-        clients[findPlayer(addr)].setPlayerSettings(True, username, msg[11], msg[12], 0, 0)
+        clients[findPlayer(addr)].setPlayerSettings(True, username, msg[11], msg[12], 0, 0, 0)
 
         byteList[0] = 3
         byteList[11] = msg[11]
@@ -339,6 +345,28 @@ def parseMessage(conn, addr, msgRaw):
         for client in clients:
             if not client.admin:
                 client.returnConn().send(listToString(byteList).encode("utf-8"))
+
+    elif msg[0] == 7:
+       byteList = [0]*20
+       byteList[0] = 10
+       byteList[1] = msg[1]
+       for client in clients:
+            client.returnConn().send(listToString(byteList).encode("utf-8"))
+
+    elif msg[0] == 8:
+       byteList = [0]*20
+       byteList[0] = 11
+       byteList[1] = msg[1]
+       for client in clients:
+            client.returnConn().send(listToString(byteList).encode("utf-8"))
+
+    elif msg[0] == 9:
+       clients[findPlayerByGunID(msg[1])].addScore()
+       byteList = [0]*20
+       byteList[0] = 12
+       byteList[1] = msg[1]
+       for client in clients:
+            client.returnConn().send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 253:
         if msg[1] == 0:
@@ -440,6 +468,8 @@ def sendStartingMessages(conn, addr):
         byteList[3] = currentGame.getLives()
         byteList[4] = currentGame.getTime()
         byteList[5] = currentGame.getMaxKills()
+        byteList[6] = currentGame.location
+        byteList[7] = currentGame.gameType
 
         conn.send(listToString(byteList).encode("utf-8"))
     
@@ -456,6 +486,7 @@ def sendStartingMessages(conn, addr):
             byteList[13] = client.getGunID()
             byteList[14] = client.deaths
             byteList[15] = client.kills
+            byteList[16] = client.score
             conn.send(listToString(byteList).encode("utf-8"))
 
 #listens for connection attempts and starts connections from clients
@@ -490,9 +521,9 @@ def start():
             byteList = [0]*20
             byteList[0] = 253
 
-            #version 1.2
+            #version 1.3
             byteList[1] = 1 #1
-            byteList[2] = 2 #.2
+            byteList[2] = 3 #.3
 
             conn.send(listToString(byteList).encode("utf-8"))
 
