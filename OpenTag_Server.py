@@ -492,7 +492,7 @@ def sendStartingMessages(conn, addr):
 #listens for connection attempts and starts connections from clients
 def start():
     
-    print(f"[LISTENING] Server is listening on {SERVER}")
+    print(f"[LISTENING] Server is listening on {SERVER}:{PORT}")
 
     global clients
     global connectionsAvailable
