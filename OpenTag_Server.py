@@ -12,7 +12,7 @@ import subprocess
 HEADER = 64
 PORT = 1234
 #Change SERVER to the computer's IPV4. You don't need to change this if the server is running on windows
-SERVER = socket.gethostbyname(socket.gethostname())
+SERVER = str(input("Enter the server's IPV4: "))
 ADDR = (SERVER, PORT)
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
