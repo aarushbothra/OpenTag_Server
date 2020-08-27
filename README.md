@@ -13,7 +13,7 @@ Anything higher than this is fine too. You can skip to the next part. If you hav
 
 https://tecadmin.net/install-python-3-7-on-ubuntu-linuxmint/
 
-### Downloading Server
+Downloading Server
 
 ```
 git clone https://github.com/APersonnn/OpenTag_Server.git
@@ -22,14 +22,14 @@ git fetch --tags
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 ```
 
-### Running Server
+Running Server
 
 ```
 cd ~/OpenTag_Server
 python3 OpenTag_Server.py
 ```
 
-### Updating Server
+Updating Server
 
 ```
 cd ~/OpenTag_Server
@@ -49,7 +49,7 @@ After that, download the repo. Right click on OpenTag_Server.py, go to Open With
 
 Check out goldsziggy/OpenTag_Server for a docker version!
 
-# Connecting from the app
+## Connecting from the app
 
 Once you know the server runs, close it. You now need to portforward the server if you wish to access it from the internet. I'm not going to go over it because it is slightly different for every router model, but just know that if you didn't edit the port in OpenTag_Server.py, the port is 1234.
 
