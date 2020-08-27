@@ -1,8 +1,6 @@
-# OpenTag Server
+# OpenTag Server Setup Instructions
 
-## First Time Setup
-
-### Linux
+## Linux
 First check if python is already installed
 ```
 python3 -V
@@ -38,6 +36,14 @@ cd OpenTag_Server
 git fetch --tags
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 ```
+
+## Windows
+
+Get Python from here:
+
+https://www.python.org/downloads/
+
+After that, download the repo. Right click on OpenTag_Server.py, go to Open With, and click Python 3.8.
 
 ## Docker
 
