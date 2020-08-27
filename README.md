@@ -17,7 +17,7 @@ https://tecadmin.net/install-python-3-7-on-ubuntu-linuxmint/
 
 ```
 git clone https://github.com/APersonnn/OpenTag_Server.git
-cd OpenTag_Server
+cd ~/OpenTag_Server
 git fetch --tags
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 ```
@@ -25,14 +25,14 @@ git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 ### Running Server
 
 ```
-cd OpenTag_Server
+cd ~/OpenTag_Server
 python3 OpenTag_Server.py
 ```
 
 ### Updating Server
 
 ```
-cd OpenTag_Server
+cd ~/OpenTag_Server
 git fetch --tags
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 ```
