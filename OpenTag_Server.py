@@ -4,6 +4,7 @@ import threading
 import time
 import os
 import sys
+import json
 
 import logging
 import struct
@@ -11,56 +12,62 @@ import struct
 import subprocess
 
 HEADER = 64
-PORT = 1234
-#Change SERVER to the computer's IPV4. You don't need to change this if the server is running on windows
-SERVER = str(input("Enter the server's IPV4: "))
-ADDR = (SERVER, PORT)
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(ADDR)
-
-#Changes to false after first player connected is assigned admin to prevent other players from becoming admin
+# Changes to false after first player connected is assigned admin to prevent other players from becoming admin
 adminNotSet = True
 
-#list of all connected clients, stored as Player objects
+# list of all connected clients, stored as Player objects
 clients = []
 
-#gunIDs available to assign to clients. GunIDs get removed from this list when it is assigned to a player, and added back when players disconnect.
-gunIDs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+# gunIDs available to assign to clients. GunIDs get removed from this list when it is assigned to a player, and added back when players disconnect.
+gunIDs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 
-#Stops the server from accepting clients if the server has run out of gunIDs to assign. 
+# Stops the server from accepting clients if the server has run out of gunIDs to assign.
 connectionsAvailable = True
 
-#global variable that stores the settings of the current game by being instantiated as a Game object.
+# global variable that stores the settings of the current game by being instantiated as a Game object.
 currentGame = None
 
-#tracks whether admin has sent game settings back to the server
+# tracks whether admin has sent game settings back to the server
 adminSetUpComplete = False
 
-#tracks whether a game is currently running
+# tracks whether a game is currently running
 gameInProgress = False
 
-#tracks whether a game has ended.
+# tracks whether a game has ended.
 gameEnded = False
 
 listen = True
 
-#turns a list of ints into a string so it can be sent over the socket
+SERVER = ''
+PORT = 1234
+server = {}
+
+
+def dispatchResponse(payload):
+    if isinstance(payload, list):
+        return listToString(payload).encode("utf-8")
+    return json.dumps(payload).encode("utf-8")
+
+# turns a list of ints into a string so it can be sent over the socket
+
+
 def listToString(list):
     returnString = ''
 
-    for x in range(0,20):
+    for x in range(0, 20):
         returnString += str(list[x])
         returnString += ","
 
     if len(returnString) < 80:
-        for x in range(0,(80-len(returnString))-1):
+        for x in range(0, (80-len(returnString))-1):
             returnString += ","
-
 
     return returnString
 
-#Restarts the server and disconnects all connected clients. Resets all globals.
+# Restarts the server and disconnects all connected clients. Resets all globals.
+
+
 def restart():
     global clients
     global gunIDs
@@ -78,14 +85,14 @@ def restart():
     print("restart")
     byteList = [0]*20
     byteList[0] = 254
-    
+
     for client in clients:
         client.conn.close()
 
     connectionsAvailable = False
- 
+
     clients = []
-    gunIDs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+    gunIDs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     adminNotSet = True
     connectionsAvailable = True
     currentGame = None
@@ -95,7 +102,7 @@ def restart():
     listen = True
 
     print("[STARTING] server is starting...")
-    start()
+    start(SERVER, PORT, server)
 
 
 class Player:
@@ -153,10 +160,10 @@ class Player:
         self.score += 1
 
 
-#ammo, lives, time, maxKills, and numOfTeams will all be ints, with max 255. If any of these are 0, then they will be unlimited (for numOfTeams, it will be ffa).
-#Both time and maxKills cannot be 0, will be managed by app.
-#numOfTeams cannot be greater than 8, unless ffa. numOfTeams also cannot be 1
-#Time will be in minutes
+# ammo, lives, time, maxKills, and numOfTeams will all be ints, with max 255. If any of these are 0, then they will be unlimited (for numOfTeams, it will be ffa).
+# Both time and maxKills cannot be 0, will be managed by app.
+# numOfTeams cannot be greater than 8, unless ffa. numOfTeams also cannot be 1
+# Time will be in minutes
 class Game:
     def __init__(self, numOfTeams, ammo, lives, time, maxKills, location, gameType):
         self.ammo = ammo
@@ -183,10 +190,7 @@ class Game:
         return self.maxKills
 
 
-
-
-
-#returns index of player with matching gunID
+# returns index of player with matching gunID
 def findPlayerByGunID(gunID):
     global clients
 
@@ -198,7 +202,9 @@ def findPlayerByGunID(gunID):
         x += 1
     return returnVar
 
-#returns index of player with matching addr
+# returns index of player with matching addr
+
+
 def findPlayer(addr):
     global clients
 
@@ -211,7 +217,7 @@ def findPlayer(addr):
     return returnVar
 
 
-#removes player from list clients and sends message to all other clients to remove player from their lists if client disconnects from server
+# removes player from list clients and sends message to all other clients to remove player from their lists if client disconnects from server
 def removePlayer(conn, addr):
     global clients
     global connectionsAvailable
@@ -229,8 +235,7 @@ def removePlayer(conn, addr):
         connectionsAvailable = False
         print("admin removed")
         restart()
-        
-    
+
     else:
         if clients[findPlayer(addr)].usernameSet:
             byteList = [0]*20
@@ -239,17 +244,15 @@ def removePlayer(conn, addr):
             gunIDs.append(clients[findPlayer(addr)].getGunID())
             clients.pop(playerIndex)
             for client in clients:
-               conn.send(listToString(byteList).encode("utf-8"))
+                conn.send(listToString(byteList).encode("utf-8"))
 
-        
         else:
             print("regular player removed")
             gunIDs.append(clients[playerIndex].getGunID())
             clients.pop(playerIndex)
 
 
-
-#parses message recieved from client. For more info, see server communication protocol document.
+# parses message recieved from client. For more info, see server communication protocol document.
 def parseMessage(conn, addr, msgRaw):
 
     global clients
@@ -261,13 +264,14 @@ def parseMessage(conn, addr, msgRaw):
     global gameEnded
 
     msg = bytearray(msgRaw)
-    
+
     if msg[0] != 252:
         print(f"Message Receied: {msg}")
 
     if msg[0] == 0:
 
-        currentGame = Game(msg[1], msg[2], msg[3], msg[4], msg[5], msg[6], msg[7])
+        currentGame = Game(msg[1], msg[2], msg[3],
+                           msg[4], msg[5], msg[6], msg[7])
         adminSetUpComplete = True
         byteList = [0]*20
         byteList[0] = 2
@@ -286,11 +290,12 @@ def parseMessage(conn, addr, msgRaw):
     elif msg[0] == 1:
         usernameArray = bytearray([])
         byteList = [0]*20
-        for x in range(1,10):
+        for x in range(1, 10):
             usernameArray.append(msg[x])
             byteList[x] = msg[x]
         username = usernameArray
-        clients[findPlayer(addr)].setPlayerSettings(True, username, msg[11], msg[12], 0, 0, 0)
+        clients[findPlayer(addr)].setPlayerSettings(
+            True, username, msg[11], msg[12], 0, 0, 0)
 
         byteList[0] = 3
         byteList[11] = msg[11]
@@ -348,25 +353,25 @@ def parseMessage(conn, addr, msgRaw):
                 client.returnConn().send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 7:
-       byteList = [0]*20
-       byteList[0] = 10
-       byteList[1] = msg[1]
-       for client in clients:
+        byteList = [0]*20
+        byteList[0] = 10
+        byteList[1] = msg[1]
+        for client in clients:
             client.returnConn().send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 8:
-       byteList = [0]*20
-       byteList[0] = 11
-       byteList[1] = msg[1]
-       for client in clients:
+        byteList = [0]*20
+        byteList[0] = 11
+        byteList[1] = msg[1]
+        for client in clients:
             client.returnConn().send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 9:
-       clients[findPlayerByGunID(msg[1])].addScore()
-       byteList = [0]*20
-       byteList[0] = 12
-       byteList[1] = msg[1]
-       for client in clients:
+        clients[findPlayerByGunID(msg[1])].addScore()
+        byteList = [0]*20
+        byteList[0] = 12
+        byteList[1] = msg[1]
+        for client in clients:
             client.returnConn().send(listToString(byteList).encode("utf-8"))
 
     elif msg[0] == 253:
@@ -384,12 +389,7 @@ def parseMessage(conn, addr, msgRaw):
         print(f"{addr} CONNECTION CLOSED")
 
 
-
-
-
-
-
-#listens for messages from clients
+# listens for messages from clients
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
@@ -398,7 +398,6 @@ def handle_client(conn, addr):
     global adminNotSet
     global gunIDs
     global server
-
 
     connected = True
 
@@ -412,12 +411,13 @@ def handle_client(conn, addr):
                 conn.close()
                 removePlayer(conn, addr)
             except:
-                print(f"unable to remove forcibly disconnected player@ try recv {addr}")
+                print(
+                    f"unable to remove forcibly disconnected player@ try recv {addr}")
             print(f"client forcibly disconnected @ try recv {addr}")
 
             if len(gunIDs) > 0:
                 connectionsAvailable = True
-         
+
         if msgRaw:
             parseMessage(conn, addr, msgRaw)
 
@@ -427,13 +427,12 @@ def handle_client(conn, addr):
                 conn.close()
                 removePlayer(conn, addr)
             except:
-                print(f"unable to remove forcibly disconnected player@ if msgRaw {addr}")
+                print(
+                    f"unable to remove forcibly disconnected player@ if msgRaw {addr}")
             print(f"client forcibly disconnected @ if msgRaw {addr}")
-            
-            
 
 
-#when client connects for first time, server will send these messages to make sure client is up to date with the information all oter clients have about the game
+# when client connects for first time, server will send these messages to make sure client is up to date with the information all oter clients have about the game
 def sendStartingMessages(conn, addr):
     print("sending starting messages")
     global clients
@@ -446,19 +445,20 @@ def sendStartingMessages(conn, addr):
     global VERSION
 
     if len(gunIDs) == 0:
-       connectionsAvailable = False
+        connectionsAvailable = False
 
     byteList = [0]*20
     byteList[0] = 1
 
     if adminNotSet:
-       clients[findPlayer(addr)].setAdmin(True)
+        clients[findPlayer(addr)].setAdmin(True)
 
-       byteList[0] = 0
-       adminNotSet = False
+        byteList[0] = 0
+        adminNotSet = False
 
     byteList[1] = clients[findPlayer(addr)].getGunID()
-    print(f"Sending {listToString(byteList)} to {clients[findPlayer(addr)].returnAddress()} ")
+    print(
+        f"Sending {listToString(byteList)} to {clients[findPlayer(addr)].returnAddress()} ")
     conn.send(listToString(byteList).encode("utf-8"))
 
     if adminSetUpComplete:
@@ -473,13 +473,12 @@ def sendStartingMessages(conn, addr):
         byteList[7] = currentGame.gameType
 
         conn.send(listToString(byteList).encode("utf-8"))
-    
-    
+
     for client in clients:
         if client.usernameSet:
             byteList = [0]*20
             byteList[0] = 3
-            for x in range(1,10):
+            for x in range(1, 10):
                 byteList[x] = client.getUsername()[x-1]
 
             byteList[11] = client.getTeam()
@@ -490,11 +489,13 @@ def sendStartingMessages(conn, addr):
             byteList[16] = client.score
             conn.send(listToString(byteList).encode("utf-8"))
 
-#listens for connection attempts and starts connections from clients
-def start():
-    
-    print(f"[LISTENING] Server is listening on {SERVER}:{PORT}")
+# listens for connection attempts and starts connections from clients
 
+
+def start(IP, PORT, localServer):
+
+    print(f"[LISTENING] Server is listening on {IP}:{PORT}")
+    server = localServer
     global clients
     global connectionsAvailable
     global currentGame
@@ -503,7 +504,7 @@ def start():
     global adminNotSet
     global gameInProgress
     global VERSION
-    global listen 
+    global listen
 
     while listen:
         continueExec = False
@@ -518,23 +519,29 @@ def start():
 
             clients.append(Player(conn, addr))
 
-            #Version check
+            # Version check
             byteList = [0]*20
             byteList[0] = 253
 
-            #version 1.3
-            byteList[1] = 1 #1
-            byteList[2] = 3 #.3
+            # version 1.3
+            byteList[1] = 1  # 1
+            byteList[2] = 3  # .3
 
             conn.send(listToString(byteList).encode("utf-8"))
-
 
             thread = threading.Thread(target=handle_client, args=(conn, addr))
             thread.start()
             print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 5}")
 
 
+if __name__ == '__main__':
+    PORT = 1234
+    # Change SERVER to the computer's IPV4. You don't need to change this if the server is running on windows
+    SERVER = str(input("Enter the server's IPV4: "))
+    ADDR = (SERVER, PORT)
 
-print("[STARTING] server is starting...")
-server.listen()
-start()
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(ADDR)
+    print("[STARTING] server is starting...")
+    server.listen()
+    start(SERVER, PORT, server)
