@@ -54,3 +54,11 @@ Check out goldsziggy/OpenTag_Server for a docker version!
 Once you know the server runs, close it. You now need to portforward the server if you wish to access it from the internet. I'm not going to go over it because it is slightly different for every router model, but just know that if you didn't edit the port in OpenTag_Server.py, the port is 1234.
 
 After that, we need the public IP of our server. On a device with a browser connected to the same network as the server, type "whats my ip" into google. This is the IP you will type into the app when not connected to the same network as the server! You should now be good to go. Have fun!
+
+## Development
+
+### Running the tests
+
+```
+python3 test_OpenTag_server.py
+```
